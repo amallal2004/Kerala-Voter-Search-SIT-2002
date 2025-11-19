@@ -51,7 +51,7 @@ export async function POST(request: Request) {
                 let value = '';
 
                 let next = strong.nextSibling;
-                while (next && next.tagName !== 'strong' && next.tagName !== 'br') {
+                while (next && (next.type !== 'tag' || (next as any).tagName !== 'strong') && (next.type !== 'tag' || (next as any).tagName !== 'br')) {
                     if (next.type === 'text') {
                         value += next.data;
                     } else if (next.type === 'tag') {
