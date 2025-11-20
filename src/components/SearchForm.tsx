@@ -28,6 +28,10 @@ export default function SearchForm({ onSearch, onLoading }: SearchFormProps) {
     const [isLoadingDistricts, setIsLoadingDistricts] = useState(true);
     const [isLoadingLacs, setIsLoadingLacs] = useState(false);
 
+    const [booths, setBooths] = useState<Lac[]>([]); // Reusing Lac interface as structure is same
+    const [selectedBooth, setSelectedBooth] = useState('');
+    const [isLoadingBooths, setIsLoadingBooths] = useState(false);
+
     useEffect(() => {
         async function fetchDistricts() {
             try {
@@ -48,6 +52,8 @@ export default function SearchForm({ onSearch, onLoading }: SearchFormProps) {
         setSelectedDistrict(districtId);
         setSelectedLac('');
         setLacs([]);
+        setSelectedBooth('');
+        setBooths([]);
 
         if (districtId) {
             setIsLoadingLacs(true);
@@ -67,6 +73,30 @@ export default function SearchForm({ onSearch, onLoading }: SearchFormProps) {
         }
     };
 
+    const handleLacChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const lacId = e.target.value;
+        setSelectedLac(lacId);
+        setSelectedBooth('');
+        setBooths([]);
+
+        if (lacId) {
+            setIsLoadingBooths(true);
+            try {
+                const res = await fetch('/api/meta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lacId })
+                });
+                const data = await res.json();
+                setBooths(data);
+            } catch (e) {
+                console.error("Failed to fetch Booths", e);
+            } finally {
+                setIsLoadingBooths(false);
+            }
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         onLoading(true);
@@ -77,6 +107,7 @@ export default function SearchForm({ onSearch, onLoading }: SearchFormProps) {
                 body: JSON.stringify({
                     districtId: selectedDistrict,
                     lacId: selectedLac,
+                    boothId: selectedBooth,
                     name,
                     houseName
                 })
@@ -119,7 +150,7 @@ export default function SearchForm({ onSearch, onLoading }: SearchFormProps) {
                     <div className="relative">
                         <select
                             value={selectedLac}
-                            onChange={(e) => setSelectedLac(e.target.value)}
+                            onChange={handleLacChange}
                             className="w-full p-3 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all disabled:opacity-50"
                             required
                             disabled={!selectedDistrict || isLoadingLacs}
@@ -130,6 +161,28 @@ export default function SearchForm({ onSearch, onLoading }: SearchFormProps) {
                             ))}
                         </select>
                         {isLoadingLacs && (
+                            <div className="absolute right-3 top-3">
+                                <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">Booth (Optional)</label>
+                    <div className="relative">
+                        <select
+                            value={selectedBooth}
+                            onChange={(e) => setSelectedBooth(e.target.value)}
+                            className="w-full p-3 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all disabled:opacity-50"
+                            disabled={!selectedLac || isLoadingBooths}
+                        >
+                            <option value="">Select Booth</option>
+                            {booths.map(b => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </select>
+                        {isLoadingBooths && (
                             <div className="absolute right-3 top-3">
                                 <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
                             </div>

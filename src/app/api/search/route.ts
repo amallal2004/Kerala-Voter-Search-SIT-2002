@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { unicodeToFml, fmlToUnicode } from '@/lib/converter';
+import { fetchWithRetry } from '@/lib/fetcher';
 
 const BASE_URL = 'https://www.ceo.kerala.gov.in/';
 
 export async function POST(request: Request) {
     const body = await request.json();
-    const { districtId, lacId, name, houseName } = body;
+    const { districtId, lacId, boothId, name, houseName } = body;
 
     if (!districtId || !lacId) {
         return NextResponse.json({ error: 'District and LAC are required' }, { status: 400 });
@@ -19,12 +20,15 @@ export async function POST(request: Request) {
     const formData = new URLSearchParams();
     formData.append('district_id', districtId);
     formData.append('lac_id', lacId);
+    if (boothId) {
+        formData.append('booth_id', boothId);
+    }
     formData.append('searchname', searchNameAscii);
     formData.append('searchhousename', searchHouseNameAscii);
     formData.append('frmsbt', '1');
 
     try {
-        const response = await fetch(`${BASE_URL}voter-search`, {
+        const response = await fetchWithRetry(`${BASE_URL}voter-search`, {
             method: 'POST',
             body: formData,
             headers: {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { fmlToUnicode } from '@/lib/converter';
+import { fetchWithRetry } from '@/lib/fetcher';
 
 const BASE_URL = 'https://www.ceo.kerala.gov.in/';
 
@@ -27,32 +28,39 @@ export async function GET() {
 
 export async function POST(request: Request) {
     const body = await request.json();
-    const { districtId } = body;
+    const { districtId, lacId } = body;
 
-    if (!districtId) {
-        return NextResponse.json({ error: 'District ID is required' }, { status: 400 });
+    if (!districtId && !lacId) {
+        return NextResponse.json({ error: 'District ID or LAC ID is required' }, { status: 400 });
     }
 
     try {
-        const response = await fetch(`${BASE_URL}votersearchnew/show_lac/?id=${districtId}`);
+        let url = '';
+        if (lacId) {
+            url = `${BASE_URL}votersearchnew/show_booth/?id=${lacId}`;
+        } else {
+            url = `${BASE_URL}votersearchnew/show_lac/?id=${districtId}`;
+        }
+
+        const response = await fetchWithRetry(url);
         const data = await response.json();
 
         // Parse HTML to extract options
         const $ = cheerio.load(data.selectHtml);
-        const lacs: { id: string, name: string }[] = [];
+        const items: { id: string, name: string }[] = [];
 
         $('.dropdown-options div').each((_, el) => {
             const id = $(el).attr('data-value');
             const rawName = $(el).text().trim();
             if (id && rawName) {
                 const name = fmlToUnicode(rawName);
-                lacs.push({ id, name });
+                items.push({ id, name });
             }
         });
 
-        return NextResponse.json(lacs);
+        return NextResponse.json(items);
     } catch (error) {
-        console.error('Error fetching LACs:', error);
-        return NextResponse.json({ error: 'Failed to fetch LACs' }, { status: 500 });
+        console.error('Error fetching metadata:', error);
+        return NextResponse.json({ error: 'Failed to fetch metadata' }, { status: 500 });
     }
 }
